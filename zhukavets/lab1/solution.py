@@ -25,57 +25,44 @@ def manual_chi_squared_test(data: np.ndarray, bins: int | str = 'auto'):
         return np.nan, 0, None, None
 
     sample_mean = float(np.mean(data))
-    sample_std = float(np.std(data, ddof=0))  # population std to match moments above
+    sample_std = float(np.std(data, ddof=0))
 
+    # Create bins based on percentiles for better distribution
+    if bins == 'auto':
+        bins = max(4, min(15, int(n / 5)))  # Reasonable bin count
+    
     counts, edges = np.histogram(data, bins=bins)
     k = counts.size
 
-    # Avoid too-fine binning: merge bins to ensure expected >= 5
-    # First compute expected probabilities via normal CDF
+    # Calculate expected probabilities
     probs = []
     for i in range(k):
         p = _normal_cdf(edges[i + 1], sample_mean, sample_std) - _normal_cdf(edges[i], sample_mean, sample_std)
         probs.append(max(p, 1e-12))
+    
     probs = np.array(probs)
-
     expected = n * probs
 
-    # Merge adjacent bins with expected < 5
-    merged_obs = []
-    merged_exp = []
-    acc_o = 0.0
-    acc_e = 0.0
-    for o, e in zip(counts, expected):
-        acc_o += o
-        acc_e += e
-        if acc_e >= 5.0:
-            merged_obs.append(acc_o)
-            merged_exp.append(acc_e)
-            acc_o = 0.0
-            acc_e = 0.0
-    if acc_e > 0.0:
-        if merged_exp:
-            # add remainder to last bin
-            merged_obs[-1] += acc_o
-            merged_exp[-1] += acc_e
-        else:
-            merged_obs.append(acc_o)
-            merged_exp.append(acc_e)
+    # Simple merging - only merge if expected < 1, keep original otherwise
+    valid_mask = expected >= 1
+    if np.sum(valid_mask) < 3:
+        # If too few valid bins, do minimal merging
+        merged_obs = [np.sum(counts)]
+        merged_exp = [np.sum(expected)]
+    else:
+        merged_obs = counts[valid_mask]
+        merged_exp = expected[valid_mask]
 
-    merged_obs = np.array(merged_obs, dtype=float)
-    merged_exp = np.array(merged_exp, dtype=float)
-
-    # Compute chi-square statistic
+    # Calculate chi-square
     with np.errstate(divide='ignore', invalid='ignore'):
         terms = (merged_obs - merged_exp) ** 2 / merged_exp
         terms[~np.isfinite(terms)] = 0.0
-        chi2 = float(np.sum(terms))
+        chi2_stat = float(np.sum(terms))
 
-    # degrees of freedom: (#bins - 1 - #estimated params)
-    # We estimated mean and std ⇒ 2 params
-    dof = max(int(merged_obs.size - 1 - 2), 1)
+    dof = max(len(merged_obs) - 1 - 2, 1)
 
-    return chi2, dof, counts, expected
+    return chi2_stat, dof, counts, expected
+
 
 
 def calculate_moments(data):
@@ -171,7 +158,7 @@ def perform_analysis(data, title_prefix="Initial", label="Data"):
     print("\n[II. Normality Check]")
     
     # 1. Chi-squared Test (Manual)
-    chi_sq_stat, dof, _, _ = manual_chi_squared_test(np.asarray(data, dtype=float))
+    chi_sq_stat, dof, _, _ = manual_chi_squared_test(np.asarray(data, dtype=float))    
     if not np.isnan(chi_sq_stat):
         print("1. Chi-squared Test (Manual Implementation):")
         print(f"   Chi-square Statistic: {chi_sq_stat:.4f}, DoF: {dof}")
@@ -201,7 +188,7 @@ def perform_analysis(data, title_prefix="Initial", label="Data"):
     # Save unique filename for each analysis
     safe_prefix = _sanitize_filename(str(title_prefix)).lower()
     safe_label = _sanitize_filename(str(label)).lower()
-    out_path = f'zhukavets/{safe_prefix}_{safe_label}.png'
+    out_path = f'zhukavets/lab1/plots/{safe_prefix}_{safe_label}.png'
     plt.savefig(out_path)
     # plt.show()
 
@@ -248,9 +235,9 @@ def analyze_by_group(df: pd.DataFrame, value_col: str, group_col: str = 'School_
 # --- Execution of Tasks I & II on Initial Data ---
 
 try:
-    df = pd.read_csv('datasets/teen_phone_addiction_dataset.csv')
+    df = pd.read_csv('/home/mbugzy/uni/uni/4course/oaid/oiad-13-2025/datasets/teen_phone_addiction_dataset.csv')
 
-    target_column_name = 'Sleep_Hours'
+    target_column_name = 'Time_on_Social_Media'
 
     X = np.array([float(x) for x in df[target_column_name]])
     
@@ -265,3 +252,5 @@ except FileNotFoundError:
     print('couldn`t load dataset')
 except:
     print()
+
+    
