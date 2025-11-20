@@ -54,8 +54,6 @@ def chi_square_test(data, bins=5):
     df_chi = bins - 1 - 2
     p_value = 1 - stats.chi2.cdf(chi2_stat, df_chi)
 
-    # shapiro_stat, p_value_shapiro = stats.shapiro(data)
-    # print(f"Shapiro–Wilk statistic: {shapiro_stat:.4f}, p-value: {p_value_shapiro:.4f}")
 
     return chi2_stat, p_value
 
@@ -65,25 +63,6 @@ print("Критерий хи-квадрат: статистика =", chi2_stat,
 # ВАЖНО: значения в выборке лежат в диапазоне от 13 до 19 — это дискретные и ограниченные данные.
 # Поэтому хи-квадрат может показывать сильное отклонение даже при "нормальном" распределении.
 # Для таких данных лучше использовать визуальный анализ (Q-Q график) или тест Шапиро-Уилка.
-
-from scipy import stats
-
-
-def shapiro_test(data):
-    stat, p_value = stats.shapiro(data)
-
-    print("Тест Шапиро–Уилка:")
-    print(f"  Статистика W = {stat:.4f}")
-    print(f"  p-значение = {p_value:.4f}")
-
-    if p_value < 0.05:
-        print("Данные не соответствуют нормальному распределению")
-    else:
-        print("Данные можно считать нормально распределёнными")
-
-    return stat, p_value
-
-stat,p_value = shapiro_test(data)
 
 print("Тест на асимметрию: p-значение =", stats.skewtest(data).pvalue)
 print("Тест на эксцесс: p-значение =", stats.kurtosistest(data).pvalue)
